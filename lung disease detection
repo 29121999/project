@@ -1,0 +1,238 @@
+import os
+from shutil import copyfile
+from PIL import Image, UnidentifiedImageError
+import numpy as np
+from tensorflow.keras.models import Sequential, load_model
+from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout, BatchNormalization
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.callbacks import ReduceLROnPlateau, EarlyStopping
+from tensorflow.keras.preprocessing.image import ImageDataGenerator, load_img, img_to_array
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+
+
+from google.colab import drive
+drive.mount('/content/drive')
+
+
+import os
+from shutil import move
+from PIL import Image, UnidentifiedImageError
+
+# Function to categorize images based on their labels
+def categorize_images(directory):
+    virus_folder = os.path.join(directory, 'Vir')
+    bacteria_folder = os.path.join(directory, 'Bac')
+
+    os.makedirs(virus_folder, exist_ok=True)
+    os.makedirs(bacteria_folder, exist_ok=True)
+
+    for file in os.listdir(directory):
+        if file.lower().endswith('.jpeg'):
+            img_path = os.path.join(directory, file)
+            try:
+                with Image.open(img_path) as img:
+                    if 'bacteria' in file.lower():
+                        move(img_path, os.path.join(bacteria_folder, file))
+                    elif 'virus' in file.lower():
+                        move(img_path, os.path.join(virus_folder, file))
+                    else:
+                        print(f"not found")
+            except UnidentifiedImageError:
+                print(f"diff img format")
+
+train_directory = '/content/drive/MyDrive/chest_xray/train/PNEUMONIA'
+test_directory = '/content/drive/MyDrive/chest_xray/test/PNEUMONIA'
+
+# Categorize train and test images
+categorize_images(train_directory)
+categorize_images(test_directory)
+
+
+import os
+
+def count_images_in_folder(directory, extensions=('.jpeg')):
+    image_count = 0
+    for file in os.listdir(directory):
+        # Check if the file ends with one of the allowed image extensions
+        if file.lower().endswith(extensions):
+            image_count += 1
+    return image_count
+
+# Directory paths
+vir = '/content/drive/MyDrive/chest_xray/train/PNEUMONIA/Vir'
+bac = '/content/drive/MyDrive/chest_xray/train/PNEUMONIA/Bac'
+vir_test = '/content/drive/MyDrive/chest_xray/test/PNEUMONIA/Vir'
+bac_test = '/content/drive/MyDrive/chest_xray/test/PNEUMONIA/Bac'
+
+vir_count_train = count_images_in_folder(vir)
+bac_count_train = count_images_in_folder(bac)
+vir_count_test = count_images_in_folder(vir_test)
+bac_count_test = count_images_in_folder(bac_test)
+
+print(f"Number of images in Vir folder: {vir_count_train}")
+print(f"Number of images in Bac folder: {bac_count_train}")
+
+print(f"Number of images in train folder: {vir_count_test}")
+print(f"Number of images in test folder: {bac_count_test}")
+
+
+
+
+
+
+import os
+
+# Function to count the number of image files in a directory
+def count_images_in_folder(directory, extensions=('.jpeg', '.jpg', '.png')):
+    image_count = 0
+    for file in os.listdir(directory):
+        # Check if the file ends with one of the allowed image extensions
+        if file.lower().endswith(extensions):
+            image_count += 1
+    return image_count
+
+# Updated directory paths
+vir = '/content/drive/MyDrive/chest_xray/train/PNEUMONIA/Vir'
+bac = '/content/drive/MyDrive/chest_xray/train/PNEUMONIA/Bac'
+vir_test = '/content/drive/MyDrive/chest_xray/test/PNEUMONIA/Vir'
+bac_test = '/content/drive/MyDrive/chest_xray/test/PNEUMONIA/Bac'
+
+# Count the number of images in each folder
+vir_image_count = count_images_in_folder(vir)
+bac_image_count = count_images_in_folder(bac)
+vir_test_image_count = count_images_in_folder(vir_test)
+bac_test_image_count = count_images_in_folder(bac_test)
+
+# Display the results
+print(f"Number of images in train VIR folder: {vir_image_count}")
+print(f"Number of images in train BAC folder: {bac_image_count}")
+print(f"Number of images in test VIR folder: {vir_test_image_count}")
+print(f"Number of images in test BAC folder: {bac_test_image_count}")
+
+
+
+
+import os
+import numpy as np
+from PIL import Image
+
+# Function to resize and normalize images
+def resize_and_normalize_images(directory, target_size=(224, 224)):
+    for file in os.listdir(directory):
+        if file.lower().endswith(('.jpeg', '.jpg', '.png')):
+            img_path = os.path.join(directory, file) 
+            try:
+                with Image.open(img_path) as img:
+                    resized_img = img.resize(target_size)
+
+                    img_array = np.array(resized_img) / 255.0
+
+                    normalized_img = Image.fromarray((img_array * 255).astype('uint8'))
+
+                    normalized_img.save(img_path) 
+
+            except Exception as e:
+                print(f"Error processing '{file}': {e}")
+
+vir = '/content/drive/MyDrive/chest_xray/train/PNEUMONIA/Vir'
+bac = '/content/drive/MyDrive/chest_xray/train/PNEUMONIA/Bac'
+vir_test = '/content/drive/MyDrive/chest_xray/test/PNEUMONIA/Vir'
+bac_test = '/content/drive/MyDrive/chest_xray/test/PNEUMONIA/Bac'
+
+resize_and_normalize_images(vir)
+resize_and_normalize_images(bac)
+resize_and_normalize_images(vir_test)
+resize_and_normalize_images(bac_test)
+
+
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Conv2D, BatchNormalization, MaxPooling2D, Dropout, Flatten, Dense
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from tensorflow.keras.callbacks import ReduceLROnPlateau, EarlyStopping
+
+cnn_model = Sequential()
+
+cnn_model.add(Conv2D(filters=32, kernel_size=(3, 3), strides=1, padding='same', activation='relu', input_shape=(224, 224, 3)))
+cnn_model.add(BatchNormalization())
+cnn_model.add(MaxPooling2D(pool_size=(2, 2), strides=2, padding='same'))
+
+cnn_model.add(Conv2D(filters=64, kernel_size=(3, 3), strides=1, padding='same', activation='relu'))
+cnn_model.add(Dropout(rate=0.1))
+cnn_model.add(BatchNormalization())
+cnn_model.add(MaxPooling2D(pool_size=(2, 2), strides=2, padding='same'))
+
+cnn_model.add(Conv2D(filters=64, kernel_size=(3, 3), strides=1, padding='same', activation='relu'))
+cnn_model.add(BatchNormalization())
+cnn_model.add(MaxPooling2D(pool_size=(2, 2), strides=2, padding='same'))
+
+cnn_model.add(Conv2D(filters=128, kernel_size=(3, 3), strides=1, padding='same', activation='relu'))
+cnn_model.add(Dropout(rate=0.2))
+cnn_model.add(BatchNormalization())
+cnn_model.add(MaxPooling2D(pool_size=(2, 2), strides=2, padding='same'))
+
+cnn_model.add(Conv2D(filters=256, kernel_size=(3, 3), strides=1, padding='same', activation='relu'))
+cnn_model.add(Dropout(rate=0.2))
+cnn_model.add(BatchNormalization())
+cnn_model.add(MaxPooling2D(pool_size=(2, 2), strides=2, padding='same'))
+
+cnn_model.add(Flatten())
+
+cnn_model.add(Dense(units=128, activation='relu'))
+cnn_model.add(Dropout(rate=0.2))
+
+cnn_model.add(Dense(units=3, activation='softmax')) 
+
+cnn_model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+
+cnn_model.summary()
+
+train_data_gen = ImageDataGenerator(
+    rescale=1./255,
+    rotation_range=20,
+    width_shift_range=0.2,
+    height_shift_range=0.2,
+    shear_range=0.2,
+    zoom_range=0.2,
+    horizontal_flip=True,
+    fill_mode='nearest'
+)
+
+train_data_generator = train_data_gen.flow_from_directory(
+    '/content/drive/MyDrive/chest_xray/train',
+    target_size=(224, 224),
+    batch_size=32,
+    classes=['NORMAL_normalized', 'BACTERIA_normalized', 'VIRUS_normalized'],
+    class_mode='categorical',
+    subset='training'
+)
+
+val_data_gen = ImageDataGenerator(rescale=1./255, validation_split=0.2)
+
+validation_data_generator = val_data_gen.flow_from_directory(
+    '/content/drive/MyDrive/chest_xray/train',
+    target_size=(224, 224),
+    batch_size=32,
+    classes=['NORMAL_normalized', 'BACTERIA_normalized', 'VIRUS_normalized'],
+    class_mode='categorical',
+    subset='validation'
+)
+
+lr_adjuster = ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=3, min_lr=1e-6)
+
+early_stop = EarlyStopping(
+    monitor='val_loss',
+    patience=5,
+    verbose=1,
+    restore_best_weights=True
+)
+
+cnn_model.fit(
+    train_data_generator,
+    epochs=50,
+    validation_data=validation_data_generator,
+    callbacks=[lr_adjuster, early_stop]
+)
+
+# Save the trained model
+cnn_model.save('/content/drive/MyDrive/chest_xray/model_cnn.h5')
+
